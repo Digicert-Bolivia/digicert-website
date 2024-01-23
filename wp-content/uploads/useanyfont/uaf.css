@@ -1,0 +1,16 @@
+				@font-face {
+					font-family: 'downlink';
+					src: url('/wordpress/wp-content/uploads/useanyfont/1733Downlink.woff2') format('woff2'),
+						url('/wordpress/wp-content/uploads/useanyfont/1733Downlink.woff') format('woff');
+					  font-display: auto;
+				}
+
+				.downlink{font-family: 'downlink' !important;}
+
+						#n2-ss-2item5 #n2-ss-2item1{
+					font-family: 'downlink' !important;
+				}
+						#n2-ss-2item5{
+					font-family: 'downlink' !important;
+				}
+		
