@@ -8,15 +8,14 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient;
 
 use KadenceWP\KadenceBlocks\Symfony\Component\HttpClient\Response\MockResponse;
 use KadenceWP\KadenceBlocks\Symfony\Component\HttpClient\Response\ResponseStream;
-use Symfony\Component\HttpFoundation\Request;
+use KadenceWP\KadenceBlocks\Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpCache\HttpCache;
 use Symfony\Component\HttpKernel\HttpCache\StoreInterface;
 use Symfony\Component\HttpKernel\HttpClientKernel;
@@ -113,7 +112,7 @@ class CachingHttpClient implements HttpClientInterface, ResetInterface
     /**
      * {@inheritdoc}
      */
-    public function stream($responses, float $timeout = null): ResponseStreamInterface
+    public function stream($responses, ?float $timeout = null): ResponseStreamInterface
     {
         if ($responses instanceof ResponseInterface) {
             $responses = [$responses];

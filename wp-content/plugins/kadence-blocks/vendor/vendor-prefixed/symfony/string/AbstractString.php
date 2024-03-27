@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\String;
@@ -402,7 +401,7 @@ abstract class AbstractString implements \Stringable, \JsonSerializable
     /**
      * @return static
      */
-    abstract public function join(array $strings, string $lastGlue = null): self;
+    abstract public function join(array $strings, ?string $lastGlue = null): self;
 
     public function jsonSerialize(): string
     {
@@ -480,7 +479,7 @@ abstract class AbstractString implements \Stringable, \JsonSerializable
     /**
      * @return static
      */
-    abstract public function slice(int $start = 0, int $length = null): self;
+    abstract public function slice(int $start = 0, ?int $length = null): self;
 
     /**
      * @return static
@@ -490,12 +489,12 @@ abstract class AbstractString implements \Stringable, \JsonSerializable
     /**
      * @return static
      */
-    abstract public function splice(string $replacement, int $start = 0, int $length = null): self;
+    abstract public function splice(string $replacement, int $start = 0, ?int $length = null): self;
 
     /**
      * @return static[]
      */
-    public function split(string $delimiter, int $limit = null, int $flags = null): array
+    public function split(string $delimiter, ?int $limit = null, ?int $flags = null): array
     {
         if (null === $flags) {
             throw new \TypeError('Split behavior when $flags is null must be implemented by child classes.');
@@ -563,7 +562,7 @@ abstract class AbstractString implements \Stringable, \JsonSerializable
      */
     abstract public function title(bool $allWords = false): self;
 
-    public function toByteString(string $toEncoding = null): ByteString
+    public function toByteString(?string $toEncoding = null): ByteString
     {
         $b = new ByteString();
 

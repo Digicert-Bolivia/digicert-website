@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\String\Inflector;
@@ -169,6 +168,9 @@ final class EnglishInflector implements InflectorInterface
         // Fourth entry: Whether the suffix may succeed a consonant
         // Fifth entry: plural suffix, normal
 
+        // axes (axis)
+        ['sixa', 4, false, false, 'axes'],
+
         // criterion (criteria)
         ['airetirc', 8, false, false, 'criterion'],
 
@@ -291,6 +293,12 @@ final class EnglishInflector implements InflectorInterface
         // circuses (circus)
         ['suc', 3, true, true, 'cuses'],
 
+        // hippocampi (hippocampus)
+        ['supmacoppih', 11, false, false, 'hippocampi'],
+
+        // campuses (campus)
+        ['sup', 3, true, true, 'puses'],
+
         // status (status)
         ['sutats', 6, true, true, ['status', 'statuses']],
 
@@ -387,6 +395,9 @@ final class EnglishInflector implements InflectorInterface
 
         // traffic
         'ciffart',
+
+        // aircraft
+        'tfarcria',
     ];
 
     /**

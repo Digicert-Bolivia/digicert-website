@@ -190,7 +190,23 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 * @access protected
 	 * @var string
 	 */
+	protected $remote_cat_url = 'https://patterns.startertemplatecloud.com/wp-json/kadence-cloud/v1/categories/';
+
+	/**
+	 * The remote URL.
+	 *
+	 * @access protected
+	 * @var string
+	 */
 	protected $remote_pages_url = 'https://patterns.startertemplatecloud.com/wp-json/kadence-cloud/v1/pages/';
+
+	/**
+	 * The remote URL.
+	 *
+	 * @access protected
+	 * @var string
+	 */
+	protected $remote_pages_cat_url = 'https://patterns.startertemplatecloud.com/wp-json/kadence-cloud/v1/pages-categories/';
 
 	/**
 	 * The remote URL.
@@ -370,6 +386,18 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		);
 		register_rest_route(
 			$this->namespace,
+			'/get_library_categories',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( $this, 'get_library_categories' ),
+					'permission_callback' => array( $this, 'get_items_permission_check' ),
+					'args'                => $this->get_collection_params(),
+				),
+			)
+		);
+		register_rest_route(
+			$this->namespace,
 			'/get_local_contexts',
 			array(
 				array(
@@ -523,56 +551,63 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	public function get_items_permission_check( $request ) {
 		return current_user_can( 'edit_posts' );
 	}
+
 	/**
-	 * Retrieves all the currently available ai content.
+	 * Retrieves all the currently available AI content.
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
+	 *
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_all_ai_items( $request ) {
 		$this->get_license_keys();
-		$reload = $request->get_param( self::PROP_FORCE_RELOAD );
+		$reload            = $request->get_param( self::PROP_FORCE_RELOAD );
 		$available_prompts = get_option( 'kb_design_library_prompts', array() );
-		if ( ! $reload ) {
-			$contexts = $this->all_contexts;
-		} else {
-			$contexts = $this->initial_contexts;
-		}
-		$return_data = array();
-		$has_error = false;
-		$ready = true;
+		$contexts          = $reload ? $this->initial_contexts : $this->all_contexts;
+		$return_data       = array();
+		$has_error         = false;
+		$ready             = true;
 		if ( ! empty( $contexts ) && is_array( $contexts ) ) {
 			foreach ( $contexts as $key => $context ) {
-				if ( isset( $available_prompts[ $context ] ) ) {
-					// Check local cache.
-					try {
-						$return_data[ $context ] = json_decode( $this->ai_cache->get( $available_prompts[ $context ] ), true );
-					} catch ( NotFoundException $e ) {
-						// Check if we have a remote file.
-						$response = $this->get_remote_contents( $available_prompts[ $context ] );
-						$data     = json_decode( $response, true );
-						if ( $response === 'error' ) {
-							$has_error = true;
-						} else if ( $response === 'processing' || isset( $data['data']['status'] ) && 409 === $data['data']['status'] ) {
-							$ready = false;
-						} else if ( isset( $data['data']['status'] ) ) {
-							$has_error = true;
-						} else {
-							$this->ai_cache->cache( $available_prompts[ $context ], $response );
+				if ( ! isset( $available_prompts[ $context ] ) ) {
+					continue;
+				}
 
-							$return_data[ $context ] = $data;
+				// Check local cache.
+				try {
+					$return_data[ $context ] = json_decode( $this->ai_cache->get( $available_prompts[ $context ] ), true );
+				} catch ( NotFoundException $e ) {
+					// Check if we have a remote file.
+					$response = $this->get_remote_contents( $available_prompts[ $context ] );
+					$body     = wp_remote_retrieve_body( $response );
+
+					if ( $this->is_response_code_error( $response ) ) {
+						// The remote job hasn't started, is still processing or is retrying.
+						if ( $this->is_ai_job_processing( $response ) ) {
+							$ready = false;
+						} else {
+							$has_error = true;
 						}
+
+						continue;
 					}
+
+					$this->ai_cache->cache( $available_prompts[ $context ], $body );
+
+					$return_data[ $context ] = json_decode( $body, true );
 				}
 			}
 		}
+
 		if ( $has_error ) {
 			return rest_ensure_response( 'error' );
-		} elseif ( $ready ) {
-			return rest_ensure_response( $return_data );
-		} else {
-			return rest_ensure_response( 'loading' );
 		}
+
+		if ( $ready ) {
+			return rest_ensure_response( $return_data );
+		}
+
+		return rest_ensure_response( 'loading' );
 	}
 
 	/**
@@ -760,7 +795,52 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 
 		return kadence_blocks()->get( Image_Downloader::class )->download( $parameters );
 	}
-
+	/**
+	 * Creates the forms if needed.
+	 *
+	 * @param string $content The content to process.
+	 */
+	public function process_forms( $content, $forms ) {
+		$new_forms = array();
+		foreach ( $forms as $form_id => $form_content ) {
+			if ( empty( $form_content['name'] ) ) {
+				continue;
+			}
+			$import_key = $form_id . sanitize_key( $form_content['name'] );
+			// Lets not duplicate forms.
+			$has_form = get_posts( array(
+				'post_type'  => 'kadence_form',
+				'meta_key' => '_kad_form_importId',
+				'meta_value' => $import_key,
+				'title'      => $form_content['name'],
+			) );
+			if ( $has_form ) {
+				$new_forms[ $form_id ] = $has_form[0]->ID;
+				continue;
+			}
+			$new_form_id = wp_insert_post(
+				array(
+					'post_title'   => wp_strip_all_tags( $form_content['name'] ),
+					'post_content' => $form_content['content'],
+					'post_status'  => 'publish',
+					'post_type'    => 'kadence_form',
+				)
+			);
+			if ( ! is_wp_error( $new_form_id ) ) {
+				if ( ! empty( $form_content['meta'] ) ) {
+					foreach ( $form_content['meta'] as $meta_key => $meta_value ) {
+						update_post_meta( $new_form_id, $meta_key, $meta_value );
+					}
+				}
+				update_post_meta( $new_form_id, '_kad_form_importId', $import_key );
+				$new_forms[ $form_id ] = $new_form_id;
+			}
+		}
+		foreach ( $new_forms as $old_id => $new_id ) {
+			$content = str_replace( '"id":' . absint( $old_id) . ',', '"id":' . absint( $new_id  ) . ',', $content );
+		}
+		return $content;
+	}
 	/**
 	 * Retrieves a collection of objects.
 	 *
@@ -773,8 +853,11 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 			return rest_ensure_response( 'failed' );
 		}
 		$content = $parameters['content'];
+		$forms = isset( $parameters['forms'] ) ? $parameters['forms'] : array();
 		$image_library = $parameters['image_library'];
-		//error_log( print_r( $image_library, true ) );
+		if ( ! empty( $forms ) ) {
+			$content = $this->process_forms( $content, $forms );
+		}
 		// Find all urls.
 		preg_match_all( '/https?:\/\/[^\'" ]+/i', $content, $match );
 		// preg_match_all( '#\bhttps?://[^,\s()<>]+(?:\([\w\d]+\)|([^,[:punct:]\s]|/))#', $content, $match );
@@ -783,7 +866,6 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		if ( empty( $all_urls ) ) {
 			return $content;
 		}
-
 		$map_urls    = array();
 		$image_urls  = array();
 		// Find all the images.
@@ -792,8 +874,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 				// Avoid srcset images.
 				if (
 					false === strpos( $link, '-150x' ) &&
-					false === strpos( $link, '-300x' ) &&
-					false === strpos( $link, '-1024x' )
+					false === strpos( $link, '-300x' )
 				) {
 					$image_urls[] = $link;
 				}
@@ -807,7 +888,8 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 					'url' => $image_url,
 					'id'  => 0,
 				);
-				if ( strpos( $image_url, 'images.pexels.com' ) !== false ) {
+				// If it's a pexels image, get the data.
+				if ( substr( $image_url, 0, strlen( 'https://images.pexels.com' ) ) === 'https://images.pexels.com' ) {
 					$image_data = $this->get_image_info( $image_library, $image_url );
 					if ( $image_data ) {
 						$alt                        = ! empty( $image_data['alt'] ) ? $image_data['alt'] : '';
@@ -820,16 +902,47 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 					}
 				}
 				$downloaded_image       = $this->import_image( $image );
-				$map_urls[ $image_url ] = $downloaded_image['url'];
+				$map_urls[ $image_url ] = array(
+					'url' => $downloaded_image['url'],
+					'id'  => $downloaded_image['id'],
+				);
 			}
 		}
-		// Replace images in content.
-		foreach ( $map_urls as $old_url => $new_url ) {
-			$content = str_replace( $old_url, $new_url, $content );
+		// Regex to find wp:kadence/image blocks with id and src.
+		$pattern = '/<!-- wp:kadence\/image .*?"id":(\d+),.*?"uniqueID":"[^"]+".*?-->(.*?)<img src="([^"]+)".*?<!-- \/wp:kadence\/image -->/s';
+		// Use preg_match_all to find all matches
+		if ( preg_match_all( $pattern, $content, $block_matches, PREG_SET_ORDER ) ) {
+			foreach ( $block_matches as $block_match ) {
+				// $block_match[0] is the entire block
+				// $block_match[1] is the id
+				// $block_match[2] is the content before <img src
+				// $block_match[3] is the src
+				$old_id            = ( isset( $block_match[1] ) ? $block_match[1] : '' );
+				$old_src           = ( isset( $block_match[3] ) ? $block_match[3] : '' );
+				$block_replacement = ( isset( $block_match[0] ) ? $block_match[0] : '' );
+				// Replace old id if it exists in the map
+				if ( isset( $map_urls[ $old_src ]['id'] ) ) {
+					$new_id = $map_urls[ $old_src ]['id'];
+					$block_replacement = preg_replace( '/"id":' . $old_id . '/', '"id":' . $new_id, $block_replacement );
+					$block_replacement = str_replace( 'wp-image-' . strval( $old_id ), 'wp-image-' . strval( $new_id ), $block_replacement );
+				}
+				// Replace old src with new one if it exists in the map.
+				if ( isset( $map_urls[ $old_src ]['url'] ) ) {
+					$new_src = $map_urls[ $old_src ]['url'];
+					$block_replacement = str_replace( $old_src, $new_src, $block_replacement );
+				}
+
+				// Replace the old block with the new one.
+				$content = str_replace( $block_match[0], $block_replacement, $content );
+			}
+		}
+		// Replace the rest of images in content.
+		foreach ( $map_urls as $old_url => $new_image ) {
+			$content = str_replace( $old_url, $new_image['url'], $content );
 			// Replace the slashed URLs if any exist.
 			$old_url = str_replace( '/', '/\\', $old_url );
-			$new_url = str_replace( '/', '/\\', $new_url );
-			$content = str_replace( $old_url, $new_url, $content );
+			$new_image['url'] = str_replace( '/', '/\\', $new_image['url'] );
+			$content = str_replace( $old_url, $new_image['url'], $content );
 		}
 		return $content;
 	}
@@ -878,7 +991,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 			}
 			// Get the response.
 			$api_url  = add_query_arg( $args, $library_url );
-			$response = wp_remote_get(
+			$response = wp_safe_remote_get(
 				$api_url,
 				array(
 					'timeout' => 20,
@@ -903,7 +1016,105 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 
 		return rest_ensure_response( 'error' );
 	}
+	/**
+	 * Retrieves a collection of objects.
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response Response object on success, or WP_Error object on failure.
+	 */
+	public function get_library_categories( WP_REST_Request $request ) {
+		$this->get_license_keys();
+		$reload           = $request->get_param( self::PROP_FORCE_RELOAD );
+		$library          = $request->get_param( self::PROP_LIBRARY );
+		$library_url      = $request->get_param( self::PROP_LIBRARY_URL );
+		$key              = $request->get_param( self::PROP_KEY );
 
+		if ( ! empty( $library_url ) ) {
+			$library_url = rtrim( $library_url, '/' ) . '/wp-json/kadence-cloud/v1/categories/';
+		} elseif ( ! empty( $library ) && 'pages' === $library ) {
+			$library_url = $this->remote_pages_cat_url;
+			$key = 'new-pages';
+		} else {
+			$library_url = $this->remote_cat_url;
+		}
+
+		$identifier = 'library-categories' . $library;
+
+		if ( ! empty( $this->api_key ) ) {
+			$identifier .= '_' . $this->api_key;
+		}
+
+		if ( ! empty( $key ) ) {
+			$identifier .= '_' . $key;
+		}
+
+		if ( 'templates' !== $library && 'pages' !== $library && 'section' !== $library && 'template' !== $library ) {
+			$cloud_settings = json_decode( get_option( 'kadence_blocks_cloud' ), true );
+			if ( ! empty( $cloud_settings['connections'][ $library ]['expires'] ) ) {
+				$expires = strtotime( get_date_from_gmt( $cloud_settings['connections'][ $library ]['expires'] ) );
+				$now     = strtotime( get_date_from_gmt( current_time( 'Y-m-d H:i:s' ) ) );
+
+				if ( $expires < $now ) {
+					$refresh = ( ! empty( $cloud_settings['connections'][ $library ]['refresh'] ) ? $cloud_settings['connections'][ $library ]['refresh'] : 'month' );
+					if ( 'day' === $refresh ) {
+						$expires_add = DAY_IN_SECONDS;
+					} elseif ( 'week' === $refresh ) {
+						$expires_add = WEEK_IN_SECONDS;
+					} else {
+						$expires_add = MONTH_IN_SECONDS;
+					}
+					$cloud_settings['connections'][ $library ]['expires'] = gmdate( 'Y-m-d H:i:s', strtotime( current_time( 'mysql' ) ) + $expires_add );
+					update_option( 'kadence_blocks_cloud', json_encode( $cloud_settings ) );
+					$reload = true;
+				}
+			}
+		}
+
+		// Check if we have a local file.
+		if ( ! $reload ) {
+			try {
+				return rest_ensure_response( $this->block_library_cache->get( $identifier ) );
+			} catch ( NotFoundException $e ) {
+			}
+		}
+
+		// Access via remote.
+		$response = $this->get_remote_library_categories( $library, $library_url, $key );
+
+		if ( 'error' === $response ) {
+			return rest_ensure_response( 'error' );
+		}
+
+		$this->block_library_cache->cache( $identifier, $response );
+
+		return rest_ensure_response( $response );
+	}
+	/**
+	 * Get the section data if available locally.
+	 */
+	public function get_local_library_data() {
+		$this->get_license_keys();
+		$reload           = false;
+		$library          = 'section';
+		$library_url      = $this->remote_url;
+		$key              = 'section';
+
+		$identifier = 'library' . $library;
+
+		if ( ! empty( $this->api_key ) ) {
+			$identifier .= '_' . $this->api_key;
+		}
+
+		if ( ! empty( $key ) ) {
+			$identifier .= '_' . $key;
+		}
+		
+		try {
+			return $this->block_library_cache->get( $identifier );
+		} catch ( NotFoundException $e ) {
+		}
+		return array();
+	}
 	/**
 	 * Retrieves a collection of objects.
 	 *
@@ -969,7 +1180,6 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		if ( 'custom' === $library ) {
 			wp_json_encode( apply_filters( 'kadence_block_library_custom_array', array() ) );
 		}
-
 		// Access via remote.
 		$response = $this->get_remote_library_contents( $library, $library_url, $key );
 
@@ -1011,6 +1221,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 * Retrieves all the currently available AI content.
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
+	 *
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_all_items( WP_REST_Request $request ) {
@@ -1025,20 +1236,16 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 				} catch ( NotFoundException $e ) {
 					// Check if we have a remote file.
 					$response = $this->get_remote_contents( $prompt );
-					$data     = json_decode( $response, true );
+					$body     = wp_remote_retrieve_body( $response );
 
-					// TODO: these variables aren't actually used for anything? What is supposed to be happening here.
-					if ( $response === 'error' ) {
-						$has_error = true;
-					} else if ( $response === 'processing' || isset( $data['data']['status'] ) && 409 === $data['data']['status'] ) {
-						$ready = false;
-					} else if ( isset( $data['data']['status'] ) ) {
-						$has_error = true;
-					} else {
-						$this->ai_cache->cache( $prompt, $response );
-
-						$return_data[ $context ] = $data;
+					// TODO: Should verify later that we shouldn't actually wait for jobs to complete.
+					if ( $this->is_response_code_error( $response ) ) {
+						continue;
 					}
+
+					$this->ai_cache->cache( $prompt, $body );
+
+					$return_data[ $context ] = json_decode( $body, true );
 				}
 			}
 		}
@@ -1065,16 +1272,18 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 				return rest_ensure_response( $this->ai_cache->get( $available_prompts[ $context ] ) );
 			} catch ( NotFoundException $e ) {
 			}
+
 			// Log event for context generation request.
 			do_action( 'kadenceblocks/ai/event', 'Context Generation Requested', [
 				'context_name'    => $context,
 				'is_regeneration' => true,
 			] );
+
 			// Check if we have a remote file.
 			$response = $this->get_remote_contents( $available_prompts[ $context ] );
-			$data     = json_decode( $response, true );
+			$body     = wp_remote_retrieve_body( $response );
 
-			if ( $response === 'error' ) {
+			if ( is_wp_error( $response ) ) {
 				$current_prompts = get_option( 'kb_design_library_prompts', array() );
 				if ( isset( $current_prompts[ $context ] ) ) {
 					unset( $current_prompts[ $context ] );
@@ -1084,33 +1293,42 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 				do_action( 'kadenceblocks/ai/event', 'Context Generation Failed', [
 					'context_name'    => $context,
 					'is_regeneration' => true,
+					'errors'          => $response->get_error_messages(),
 				] );
+
 				return rest_ensure_response( 'error' );
-			} else if ( $response === 'processing' || isset( $data['data']['status'] ) && 409 === $data['data']['status'] ) {
-				return rest_ensure_response( 'processing' );
-			} else if ( isset( $data['data']['status'] ) ) {
-				$current_prompts = get_option( 'kb_design_library_prompts', array() );
-				if ( isset( $current_prompts[ $context ] ) ) {
-					unset( $current_prompts[ $context ] );
-					update_option( 'kb_design_library_prompts', $current_prompts );
-				}
-				// Log event for failed context generation.
-				do_action( 'kadenceblocks/ai/event', 'Context Generation Failed', [
-					'context_name'    => $context,
-					'error_id'        => $data['data']['status'],
-					'is_regeneration' => true,
-				] );
-				return rest_ensure_response( 'error' );
-			} else {
-				$this->ai_cache->cache( $available_prompts[ $context ], $response );
-				// Log event for successful context generation.
-				do_action( 'kadenceblocks/ai/event', 'Context Generation Completed', [
-					'context-name'    => $context,
-					'credits-after'   => $this->get_remote_remaining_credits(),
-					'is_regeneration' => true,
-				] );
-				return rest_ensure_response( $response );
 			}
+
+			// Server returned an error response code.
+			if ( $this->is_response_code_error( $response ) ) {
+				// The remote job hasn't started, is still processing or is retrying.
+				if ( $this->is_ai_job_processing( $response ) ) {
+					return rest_ensure_response( 'processing' );
+				}
+
+				// The remote job failed.
+				$current_prompts = get_option( 'kb_design_library_prompts', array() );
+
+				if ( isset( $current_prompts[ $context ] ) ) {
+					unset( $current_prompts[ $context ] );
+					update_option( 'kb_design_library_prompts', $current_prompts );
+				}
+
+				// Note: This event is logged on an external server.
+				return rest_ensure_response( 'error' );
+			}
+
+			// Cache the AI content.
+			$this->ai_cache->cache( $available_prompts[ $context ], $body );
+
+			// Log event for successful context generation.
+			do_action( 'kadenceblocks/ai/event', 'Context Generation Completed', [
+				'context_name'    => $context,
+				'credits_after'   => $this->get_remote_remaining_credits(),
+				'is_regeneration' => true,
+			] );
+
+			return rest_ensure_response( $body );
 		} else {
 			// Create a job.
 			$response = $this->get_new_remote_contents( $context );
@@ -1279,6 +1497,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		$body['mission'] = ! empty( $prophecy_data['missionStatement'] ) ? $prophecy_data['missionStatement'] : '';
 		$body['tone'] = ! empty( $prophecy_data['tone'] ) ? $prophecy_data['tone'] : '';
 		$body['keywords'] = ! empty( $prophecy_data['keywords'] ) ? $prophecy_data['keywords'] : '';
+		$body['lang'] = ! empty( $prophecy_data['lang'] ) ? $prophecy_data['lang'] : '';
 		switch ( $context ) {
 			case 'about':
 				$body['prompts'] = array(
@@ -1535,26 +1754,29 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	/**
 	 * Check if a response code is an error.
 	 *
-	 * @access public
-	 * @return string Returns the remote URL contents.
+	 * @param array $response
+	 *
+	 * @return bool
 	 */
 	public function is_response_code_error( $response ) {
 		$response_code = (int) wp_remote_retrieve_response_code( $response );
-		if ( $response_code >= 200 && $response_code < 300 ) {
-			return false;
-		} else {
-			return true;
-		}
+
+		return $response_code >= 400;
 	}
+
 	/**
-	 * Get remote file contents.
+	 * Checks if an AI job is complete and returns the AI JSON content.
 	 *
-	 * @access public
-	 * @return string Returns the remote URL contents.
+	 * @note If the remote job is still processing or retrying, you'll receive a 409 (Conflict) HTTP status code.
+	 *
+	 * @param int $job The job ID.
+	 *
+	 * @return \WP_Error|array{headers: array, body: string, response: array{code: int, message: string}, cookies: \WP_HTTP_Cookie[]} Return the job response.
 	 */
 	public function get_remote_contents( $job ) {
 		$api_url  = $this->remote_ai_url . 'content/job/' . $job;
-		$response = wp_remote_get(
+
+		return wp_safe_remote_get(
 			$api_url,
 			array(
 				'timeout' => 20,
@@ -1563,27 +1785,8 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 				),
 			)
 		);
-		// Early exit if there was an error.
-		if ( is_wp_error( $response ) ) {
-			return 'error';
-		}
-		$response_code = (int) wp_remote_retrieve_response_code( $response );
-		if ( 409 === $response_code ) {
-			return 'processing';
-		}
-		if ( $this->is_response_code_error( $response ) ) {
-			return 'error';
-		}
-
-		// Get the CSS from our response.
-		$contents = wp_remote_retrieve_body( $response );
-		// Early exit if there was an error.
-		if ( is_wp_error( $contents ) ) {
-			return 'error';
-		}
-
-		return $contents;
 	}
+
 	/**
 	 * Get remote file contents.
 	 *
@@ -1610,7 +1813,54 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		}
 		// Get the response.
 		$api_url  = add_query_arg( $args, $library_url );
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
+			$api_url,
+			array(
+				'timeout' => 30,
+			)
+		);
+		// Early exit if there was an error.
+		if ( is_wp_error( $response ) || $this->is_response_code_error( $response ) ) {
+			return 'error';
+		}
+
+		// Get the CSS from our response.
+		$contents = wp_remote_retrieve_body( $response );
+		// Early exit if there was an error.
+		if ( is_wp_error( $contents ) ) {
+			return 'error';
+		}
+
+		return $contents;
+	}
+
+	/**
+	 * Get remote file contents.
+	 *
+	 * @access public
+	 * @return string Returns the remote URL contents.
+	 */
+	public function get_remote_library_categories( $library, $library_url, $key ) {
+		$site_url = get_original_domain();
+		$args = array(
+			'key'  => $key,
+			'site' => $site_url,
+		);
+		if ( 'templates' === $library || 'section' === $library || 'pages' === $library || 'template' === $library ) {
+			$args['api_email']  = $this->api_email;
+			$args['api_key']    = $this->api_key;
+			$args['product_id'] = $this->product_id;
+
+			if ( 'iThemes' === $this->api_email ) {
+				$args['site_url'] = $site_url;
+			}
+		}
+		if ( 'templates' === $library ) {
+			$args['request'] = 'blocks';
+		}
+		// Get the response.
+		$api_url  = add_query_arg( $args, $library_url );
+		$response = wp_safe_remote_get(
 			$api_url,
 			array(
 				'timeout' => 30,
@@ -1760,7 +2010,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 			$args['email'] = $this->api_email;
 		}
 		$api_url  = add_query_arg( $args, $this->remote_credits_url . 'get-remaining' );
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			$api_url,
 			array(
 				'timeout' => 20,
@@ -1788,7 +2038,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 */
 	public function get_remote_image_collections() {
 		$api_url  = $this->remote_ai_url . 'images/collections';
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			$api_url,
 			array(
 				'timeout' => 20,
@@ -1867,6 +2117,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 			'industry' => $parameters['industry'],
 			'location' => $parameters['location'],
 			'description' => $parameters['description'],
+			'lang' => ! empty( $parameters['lang'] ) ? $parameters['lang'] : '',
 			'count' => $parameters['count'],
 		);
 		$response = wp_remote_post(
@@ -1897,7 +2148,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 */
 	public function get_remote_industry_verticals() {
 		$api_url  = $this->remote_ai_url . 'verticals';
-		$response = wp_remote_get(
+		$response = wp_safe_remote_get(
 			$api_url,
 			array(
 				'timeout' => 20,
@@ -2029,8 +2280,8 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 * @param string $filename The filename.
 	 * @return string a sanitized filename.
 	 */
-	public function sanitize_jpeg_filename( $filename ) {
-		return sanitize_file_name( $filename ) . '.jpeg';
+	public function sanitize_filename( $filename, $ext ) {
+		return sanitize_file_name( $filename ) . '.' . $ext;
 	}
 	/**
 	 * Create a filename from alt text.
@@ -2057,6 +2308,23 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		if ( $local_image['status'] ) {
 			return $local_image['image'];
 		}
+		$filename   = basename( $image_data['url'] );
+		$image_path = $image_data['url'];
+		// Check if the image is from Pexels and get the filename.
+		if ( substr( $image_data['url'], 0, strlen( 'https://images.pexels.com' ) ) === 'https://images.pexels.com' ) {
+			$image_path = parse_url( $image_data['url'], PHP_URL_PATH );
+			$filename = basename( $image_path );
+		}
+		$info = wp_check_filetype( $image_path );
+		$ext  = empty( $info['ext'] ) ? '' : $info['ext'];
+		$type = empty( $info['type'] ) ? '' : $info['type'];
+		// If we don't allow uploading the file type or ext, return.
+		if ( ! $type || ! $ext ) {
+			return $image_data;
+		}
+		// Custom filename if passed as data.
+		$filename = ! empty( $image_data['filename'] ) ? $this->sanitize_filename( $image_data['filename'], $ext ) : $filename;
+		// Get the file content.
 		$file_content = wp_remote_retrieve_body(
 			wp_safe_remote_get(
 				$image_data['url'],
@@ -2070,25 +2338,13 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		if ( empty( $file_content ) ) {
 			return $image_data;
 		}
-		$filename = basename( $image_data['url'] );
-		if ( strpos( $image_data['url'], 'images.pexels.com' ) !== false ) {
-			$image_path = parse_url( $image_data['url'], PHP_URL_PATH );
-			$filename = basename( $image_path );
-		}
-		// Custom filename if passed as data.
-		$filename = ! empty( $image_data['filename'] ) ? $this->sanitize_jpeg_filename( $image_data['filename'] ) : $filename;
 
 		$upload = wp_upload_bits( $filename, null, $file_content );
 		$post = array(
 			'post_title' => ( ! empty( $image_data['title'] ) ? $image_data['title'] : $filename ),
 			'guid'       => $upload['url'],
 		);
-		$info = wp_check_filetype( $upload['file'] );
-		if ( $info ) {
-			$post['post_mime_type'] = $info['type'];
-		} else {
-			return $image_data;
-		}
+		$post['post_mime_type'] = $type;
 		if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
 			include( ABSPATH . 'wp-admin/includes/image.php' );
 		}
@@ -2167,22 +2423,40 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 	 */
 	public function check_for_local_image( $image_data ) {
 		global $wpdb;
-
-		// Thanks BrainstormForce for this idea.
-		// Check if image is already local based on meta key and custom hex value.
-		$image_id = $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT `post_id` FROM `' . $wpdb->postmeta . '`
-					WHERE `meta_key` = \'_kadence_blocks_image_hash\'
-						AND `meta_value` = %s
-				;',
-				sha1( $image_data['url'] )
-			)
-		);
-		if ( $image_id ) {
+		$image_id = '';
+		if ( ! empty( $image_data['url'] ) && strpos( $image_data['url'], get_site_url() ) !== false ) {
+			$image_id = attachment_url_to_postid( $image_data['url'] );
+			if ( empty( $image_id ) ) {
+				// Get unsized version use Regular expression to find the pattern -numberxnumber
+				$pattern = "/-\d+x\d+/";
+				// Replace the pattern with an empty string.
+				$cleaned_url = preg_replace( $pattern, '', $image_data['url'] );
+				if ( $cleaned_url !== $image_data['url'] ) {
+					$image_id = attachment_url_to_postid( $cleaned_url );
+					if ( empty( $image_id ) ) {
+						$scaled_url = preg_replace( $pattern, '-scaled', $image_data['url'] );
+						$image_id = attachment_url_to_postid( $scaled_url );
+					}
+				}
+			}
+		}
+		if ( empty( $image_id ) ) {
+			// Thanks BrainstormForce for this idea.
+			// Check if image is already local based on meta key and custom hex value.
+			$image_id = $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT `post_id` FROM `' . $wpdb->postmeta . '`
+						WHERE `meta_key` = \'_kadence_blocks_image_hash\'
+							AND `meta_value` = %s
+					;',
+					sha1( $image_data['url'] )
+				)
+			);
+		}
+		if ( ! empty( $image_id ) ) {
 			$local_image = array(
 				'id'  => $image_id,
-				'url' => wp_get_attachment_url( $image_id ),
+				'url' => ( ! empty( $image_data['url'] ) && strpos( $image_data['url'], get_site_url() ) !== false ) ? $image_data['url'] : wp_get_attachment_url( $image_id ),
 			);
 			return array(
 				'status' => true,
@@ -2203,10 +2477,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		if ( empty( $link ) ) {
 			return false;
 		}
-		if ( strpos( $link, 'prophecyimg.fly.dev' ) !== false ) {
-			return true;
-		}
-		if ( strpos( $link, 'images.pexels.com' ) !== false ) {
+		if ( substr( $link, 0, strlen( 'https://images.pexels.com' ) ) === 'https://images.pexels.com' ) {
 			return true;
 		}
 		return preg_match( '/^((https?:\/\/)|(www\.))([a-z0-9-].?)+(:[0-9]+)?\/[\w\-]+\.(jpg|png|gif|webp|jpeg)\/?$/i', $link );
@@ -2227,8 +2498,7 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		$defaults = [
 			'domain'          => $site_url,
 			'key'             => ! empty( $license_data['key'] ) ? $license_data['key'] : '',
-			'email'           => ! empty( $license_data['email'] ) ? $license_data['email'] : '',
-			'site_name'       => $site_name,
+			'site_name'       => sanitize_title( $site_name ),
 			'product_slug'    => apply_filters( 'kadence-blocks-auth-slug', 'kadence-blocks' ),
 			'product_version' => KADENCE_BLOCKS_VERSION,
 		];
@@ -2236,6 +2506,24 @@ class Kadence_Blocks_Prebuilt_Library_REST_Controller extends WP_REST_Controller
 		$parsed_args = wp_parse_args( $args, $defaults );
 
 		return base64_encode( json_encode( $parsed_args ) );
+	}
+
+	/**
+	 * Checks if an AI content job is still generating the content. When checking jobs, any 409 (Conflict) HTTP status
+	 * code means it's still trying to generate the content.
+	 *
+	 * @param array{headers: array, body: string, response: array{code: int, message: string}, cookies: \WP_HTTP_Cookie[]} $response
+	 *
+	 * @return bool
+	 */
+	private function is_ai_job_processing( array $response ): bool {
+		if ( ! isset( $response['response']['code'] ) ) {
+			return false;
+		}
+
+		$status = (int) $response['response']['code'];
+
+		return $status === WP_Http::CONFLICT;
 	}
 
 }

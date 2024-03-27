@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient\Internal;
@@ -152,7 +151,7 @@ final class AmpClientState extends ClientState
             public $uri;
             public $handle;
 
-            public function connect(string $uri, ConnectContext $context = null, CancellationToken $token = null): Promise
+            public function connect(string $uri, ?ConnectContext $context = null, ?CancellationToken $token = null): Promise
             {
                 $result = $this->connector->connect($this->uri ?? $uri, $context, $token);
                 $result->onResolve(function ($e, $socket) {

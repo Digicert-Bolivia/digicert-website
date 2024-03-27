@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\String;
@@ -187,7 +186,7 @@ class UnicodeString extends AbstractUnicodeString
         return false === $i ? null : $i;
     }
 
-    public function join(array $strings, string $lastGlue = null): AbstractString
+    public function join(array $strings, ?string $lastGlue = null): AbstractString
     {
         $str = parent::join($strings, $lastGlue);
         normalizer_is_normalized($str->string) ?: $str->string = normalizer_normalize($str->string);
@@ -267,7 +266,7 @@ class UnicodeString extends AbstractUnicodeString
         return $str;
     }
 
-    public function slice(int $start = 0, int $length = null): AbstractString
+    public function slice(int $start = 0, ?int $length = null): AbstractString
     {
         $str = clone $this;
 
@@ -279,7 +278,7 @@ class UnicodeString extends AbstractUnicodeString
         return $str;
     }
 
-    public function splice(string $replacement, int $start = 0, int $length = null): AbstractString
+    public function splice(string $replacement, int $start = 0, ?int $length = null): AbstractString
     {
         $str = clone $this;
 
@@ -298,7 +297,7 @@ class UnicodeString extends AbstractUnicodeString
         return $str;
     }
 
-    public function split(string $delimiter, int $limit = null, int $flags = null): array
+    public function split(string $delimiter, ?int $limit = null, ?int $flags = null): array
     {
         if (1 > $limit = $limit ?? 2147483647) {
             throw new InvalidArgumentException('Split limit must be a positive integer.');

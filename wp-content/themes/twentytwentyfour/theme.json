@@ -278,20 +278,6 @@
 					"slug": "system-Serif"
 				},
 				{
-					"fontFamily": "downlink",
-					"slug": "downlink",
-					"fontFace": [
-						{
-							"fontFamily": "downlink",
-							"fontStretch": "",
-							"fontStyle": "normal",
-							"fontWeight": "400",
-							"src": "http://localhost/wordpress/wp-content/uploads/useanyfont/1733Downlink.woff2"
-						}
-					],
-					"isUAF": true
-				},
-				{
 					"fontFamily": "Montserrat",
 					"slug": "montserrat",
 					"fontFace": [
@@ -336,6 +322,20 @@
 						}
 					],
 					"isBcf": true
+				},
+				{
+					"fontFamily": "downlink",
+					"slug": "downlink",
+					"fontFace": [
+						{
+							"fontFamily": "downlink",
+							"fontStretch": "",
+							"fontStyle": "normal",
+							"fontWeight": "400",
+							"src": "http://localhost/wordpress/wp-content/uploads/useanyfont/1733Downlink.woff2"
+						}
+					],
+					"isUAF": true
 				}
 			],
 			"fontSizes": [

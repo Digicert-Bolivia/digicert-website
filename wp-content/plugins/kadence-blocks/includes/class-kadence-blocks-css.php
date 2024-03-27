@@ -232,7 +232,7 @@ class Kadence_Blocks_CSS {
 	 * Gaps variables used in string based gutters.
 	 */
 	protected $gap_sizes = array(
-		'none' => 'var(--global-kb-gap-none, 0 )',
+		'none' => 'var(--global-kb-gap-none, 0rem )',
 		'skinny' => 'var(--global-kb-gap-sm, 1rem)',
 		'narrow' => '20px',
 		'wide' => '40px',
@@ -638,6 +638,14 @@ class Kadence_Blocks_CSS {
 		// Set the new media query
 		$this->_media_state = $value;
 		return $this;
+	}
+	/**
+	 * Get media state
+	 *
+	 * @return string
+	 */
+	public function get_media_state() {
+		return $this->_media_state;
 	}
 	/**
 	 * Stops using a media query.
@@ -1387,6 +1395,81 @@ class Kadence_Blocks_CSS {
 	 * @param array  $shadow an array of shadow settings.
 	 * @return string
 	 */
+	public function render_row_gap_property( $attributes, $name = array( 'gap', 'tabletGap', 'mobileGap' ), $device = 'desktop', $custom = '', $unit_name = 'gapUnit' ) {
+		if ( empty( $attributes ) || empty( $name ) ) {
+			return '';
+		}
+		if ( ! is_array( $attributes ) ) {
+			return '';
+		}
+		$unit = ! empty( $attributes[ $unit_name ] ) ? $attributes[ $unit_name ] : 'px';
+		switch ( $device ) {
+			case 'tablet':
+				if ( ! empty( $attributes[ $name[1] ] ) ) {
+					if ( is_array( $name ) && $attributes[ $name[1] ] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][1] ) ) {
+							return $attributes[ $custom ][1] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name[1] ] );
+					}
+				} elseif ( ! is_array( $name ) && ! empty( $attributes[ $name ][1] ) ) {
+					if ( $attributes[ $name ][1] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][1] ) ) {
+							return $attributes[ $custom ][1] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name ][1] );
+					}
+				}
+				break;
+			case 'mobile':
+				if ( is_array( $name ) && ! empty( $attributes[ $name[2] ] ) ) {
+					if ( $attributes[ $name[2] ] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][2] ) ) {
+							return $attributes[ $custom ][2] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name[2] ] );
+					}
+				} elseif ( ! is_array( $name ) && ! empty( $attributes[ $name ][2] ) ) {
+					if ( $attributes[ $name ][2] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][2] ) ) {
+							return $attributes[ $custom ][2] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name ][2] );
+					}
+				}
+				break;
+			default:
+				if ( is_array( $name ) && ! empty( $attributes[ $name[0] ] ) ) {
+					if ( $attributes[ $name[0] ] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][0] ) ) {
+							return $attributes[ $custom ][0] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name[0] ] );
+					}
+				} elseif ( ! is_array( $name ) && ! empty( $attributes[ $name ][0] ) ) {
+					if ( $attributes[ $name ][0] === 'custom' ) {
+						if ( $this->is_number( $attributes[ $custom ][0] ) ) {
+							return $attributes[ $custom ][0] . $unit;
+						}
+					} else {
+						return $this->get_variable_gap_value( $attributes[ $name ][0] );
+					}
+				}
+				break;
+		}
+		return '';
+	}
+	/**
+	 * Generates the shadow output.
+	 *
+	 * @param array  $shadow an array of shadow settings.
+	 * @return string
+	 */
 	public function render_shadow( $shadow ) {
 		if ( empty( $shadow ) ) {
 			return false;
@@ -1624,14 +1707,14 @@ class Kadence_Blocks_CSS {
 		}
 		$unit = ! empty( $attributes[ $unit ] ) ? $attributes[ $unit ] : 'px';
 		if ( isset( $attributes[ $name ] ) && is_array( $attributes[ $name ] ) ) {
-			if ( ! empty( $attributes[ $name ][0] ) ) {
+			if ( isset( $attributes[ $name ][0] ) && is_numeric( $attributes[ $name ][0] ) ) {
 				$this->add_property( $property, $attributes[ $name ][0] . $unit );
 			}
-			if ( ! empty( $attributes[ $name ][1] ) ) {
+			if ( isset( $attributes[ $name ][1] ) && is_numeric( $attributes[ $name ][1] ) ){
 				$this->set_media_state( 'tablet' );
 				$this->add_property( $property, $attributes[ $name ][1] . $unit );
 			}
-			if ( ! empty( $attributes[ $name ][2] ) ) {
+			if ( isset( $attributes[ $name ][2] ) && is_numeric( $attributes[ $name ][2] ) ) {
 				$this->set_media_state( 'mobile' );
 				$this->add_property( $property, $attributes[ $name ][2] . $unit );
 			}
@@ -1661,19 +1744,19 @@ class Kadence_Blocks_CSS {
 		$unit = ! empty( $attributes[ $unit ] ) ? $attributes[ $unit ] : 'px';
 
 		$this->set_media_state( 'desktop' );
-		if ( ! empty( $attributes[ $name[0] ] ) ) {
+		if ( isset( $attributes[ $name[0] ] ) && '' !== $attributes[ $name[0] ] ) {
 			$this->add_property( $property, $attributes[ $name[0] ] . $unit );
 		} else if ( $defaults[0] ) {
 			$this->add_property( $property, $defaults[0] . $unit );
 		}
 		$this->set_media_state( 'tablet' );
-		if ( ! empty( $attributes[ $name[1] ] ) ) {
+		if ( isset( $attributes[ $name[1] ] ) && '' !== $attributes[ $name[1] ] ) {
 			$this->add_property( $property, $attributes[ $name[1] ] . $unit );
 		} else if ( $defaults[1] ) {
 			$this->add_property( $property, $defaults[1] . $unit );
 		}
 		$this->set_media_state( 'mobile' );
-		if ( ! empty( $attributes[ $name[2] ] ) ) {
+		if ( isset( $attributes[ $name[2] ] ) && '' !== $attributes[ $name[2] ] ) {
 			$this->add_property( $property, $attributes[ $name[2] ] . $unit );
 		} else if ( $defaults[2] ) {
 			$this->add_property( $property, $defaults[2] . $unit );
@@ -2373,8 +2456,10 @@ class Kadence_Blocks_CSS {
 		$this->_selector_output = '';
 		$this->_selector_states = array();
 		$this->_tablet_media_query = array();
+		$this->_tablet_pro_media_query = array();
 		$this->_desktop_only_media_query = array();
 		$this->_tablet_only_media_query = array();
+		$this->_tablet_only_pro_media_query = array();
 		$this->_mobile_media_query = array();
 		$this->_media_state = 'desktop';
 		$this->_css = '';

@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient;
@@ -33,7 +32,7 @@ final class TraceableHttpClient implements HttpClientInterface, ResetInterface, 
     private $stopwatch;
     private $tracedRequests;
 
-    public function __construct(HttpClientInterface $client, Stopwatch $stopwatch = null)
+    public function __construct(HttpClientInterface $client, ?Stopwatch $stopwatch = null)
     {
         $this->client = $client;
         $this->stopwatch = $stopwatch;
@@ -75,7 +74,7 @@ final class TraceableHttpClient implements HttpClientInterface, ResetInterface, 
     /**
      * {@inheritdoc}
      */
-    public function stream($responses, float $timeout = null): ResponseStreamInterface
+    public function stream($responses, ?float $timeout = null): ResponseStreamInterface
     {
         if ($responses instanceof TraceableResponse) {
             $responses = [$responses];

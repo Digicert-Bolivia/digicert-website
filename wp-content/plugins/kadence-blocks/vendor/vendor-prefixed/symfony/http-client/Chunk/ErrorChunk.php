@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient\Chunk;
@@ -114,7 +113,7 @@ class ErrorChunk implements ChunkInterface
     /**
      * @return bool Whether the wrapped error has been thrown or not
      */
-    public function didThrow(bool $didThrow = null): bool
+    public function didThrow(?bool $didThrow = null): bool
     {
         if (null !== $didThrow && $this->didThrow !== $didThrow) {
             return !$this->didThrow = $didThrow;

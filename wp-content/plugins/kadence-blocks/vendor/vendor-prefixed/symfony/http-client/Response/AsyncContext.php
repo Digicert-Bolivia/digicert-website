@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient\Response;
@@ -114,7 +113,7 @@ final class AsyncContext
     /**
      * Returns the current info of the response.
      */
-    public function getInfo(string $type = null)
+    public function getInfo(?string $type = null)
     {
         if (null !== $type) {
             return $this->info[$type] ?? $this->response->getInfo($type);
@@ -187,7 +186,7 @@ final class AsyncContext
      *
      * @param ?callable(ChunkInterface, self): ?\Iterator $passthru
      */
-    public function passthru(callable $passthru = null): void
+    public function passthru(?callable $passthru = null): void
     {
         $this->passthru = $passthru ?? static function ($chunk, $context) {
             $context->passthru = null;

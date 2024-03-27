@@ -1,5 +1,5 @@
 {
-  "apiVersion": 2,
+  "apiVersion": 3,
   "title": "Section",
   "name": "kadence/column",
   "category": "kadence-blocks",
@@ -850,6 +850,9 @@
     },
     "hoverOverlayBlendMode": {
       "type": "string"
+    },
+    "kadenceFieldConditional": {
+      "type": "object"
     },
     "kbVersion": {
       "type": "number",

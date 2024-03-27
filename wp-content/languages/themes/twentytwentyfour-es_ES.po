@@ -2,12 +2,12 @@
 # This file is distributed under the same license as the Themes - Twenty Twenty-Four package.
 msgid ""
 msgstr ""
-"PO-Revision-Date: 2023-11-09 08:48:12+0000\n"
+"PO-Revision-Date: 2024-03-19 15:33:21+0000\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: GlotPress/4.0.0-alpha.11\n"
+"X-Generator: GlotPress/4.0.0\n"
 "Language: es\n"
 "Project-Id-Version: Themes - Twenty Twenty-Four\n"
 
@@ -232,22 +232,22 @@ msgstr "Óxido"
 #: theme.json styles/onyx.json
 msgctxt "Color name"
 msgid "Accent / Five"
-msgstr "Realce / Cinco"
+msgstr "Acento / Cinco"
 
 #: theme.json styles/onyx.json
 msgctxt "Color name"
 msgid "Accent / Four"
-msgstr "Realce / Cuatro"
+msgstr "Acento / Cuatro"
 
 #: theme.json styles/onyx.json
 msgctxt "Color name"
 msgid "Accent / Three"
-msgstr "Realce / Tres"
+msgstr "Acento / Tres"
 
 #: theme.json styles/onyx.json
 msgctxt "Color name"
 msgid "Accent / Two"
-msgstr "Realce / Dos"
+msgstr "Acento / Dos"
 
 #: theme.json styles/onyx.json
 msgctxt "Color name"
@@ -447,7 +447,7 @@ msgstr "Medio"
 #: theme.json styles/fossil.json styles/ice.json styles/maelstrom.json
 msgctxt "Font size name"
 msgid "Small"
-msgstr "Pequeña"
+msgstr "Pequeño"
 
 #: theme.json styles/fossil.json styles/maelstrom.json
 msgctxt "Font family name"
@@ -584,7 +584,7 @@ msgstr "Naranja y blanco"
 #: styles/ember.json
 msgctxt "Style variation name"
 msgid "Ember"
-msgstr "Ember"
+msgstr "Ascua"
 
 #: patterns/text-title-left-image-right.php:34
 msgctxt "Call to Action button text"
@@ -1242,7 +1242,7 @@ msgstr "Seguir"
 #: patterns/footer-colophon-3-col.php:41
 msgctxt "Example email in site footer"
 msgid "info@example.com"
-msgstr "info@dominio.es"
+msgstr "info@example.com"
 
 #: patterns/footer-colophon-3-col.php:38
 msgid "Contact"

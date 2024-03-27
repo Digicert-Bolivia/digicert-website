@@ -245,13 +245,14 @@ class KB_Ajax_Advanced_Form {
 		foreach ( $fields as $index => $field ) {
 			$expected_field = ! empty( $field['inputName'] ) ? $field['inputName'] : 'field' . $field['uniqueID'];
 			// Skip proccessing this field if it's misssing (usually because hidden frontend).
-			if ( empty( $_POST[ $expected_field ] ) &&  empty( $_FILES[ $expected_field ] ) ) {
+			if ( ( !isset( $_POST[ $expected_field ] ) || ( isset( $_POST[ $expected_field ] ) && $_POST[ $expected_field ] === '' ) ) && empty( $_FILES[ $expected_field ] ) ) {
 				if ( ! empty( $field['required'] ) && $field['required'] ) {
 					if ( ! empty( $field['kadenceFieldConditional']['conditionalData']['enable'] ) ) {
 						continue;
 					} else {
 						$required_message = ! empty( $field['required_message'] ) ? $field['required_message'] : __( 'Missing a required field', 'kadence-blocks' );
 						$this->process_bail( __( 'Submission Failed', 'kadence-blocks' ), $required_message );
+						break;
 					}
 				} else {
 					continue;
@@ -261,9 +262,17 @@ class KB_Ajax_Advanced_Form {
 			$value = $this->sanitize_field( $field['type'], isset( $_POST[ $expected_field ] ) ? $_POST[ $expected_field ] : '', empty( $field['multiSelect'] ) ? false : $field['multiSelect'] );
 
 			// Fail if this field is empty and is required.
-			if ( empty( $value ) && ! empty( $field['required'] ) && $field['required'] && $field['type'] !== 'file' ) {
+			if ( empty( $value ) && ! empty( $field['required'] ) && $field['required'] && $field['type'] !== 'file' && $field['type'] !== 'number') {
 				$required_message = ! empty( $field['required_message'] ) ? $field['required_message'] : __( 'Missing a required field', 'kadence-blocks' );
 				$this->process_bail( __( 'Submission Failed', 'kadence-blocks' ), $required_message );
+				break;
+			}
+
+			// Fail if this field is number and required and value is not numeric.
+			if(! empty( $field['required'] ) && $field['required'] && !is_numeric($value) && $field['type'] === 'number') {
+				$required_message = ! empty( $field['required_message'] ) ? $field['required_message'] : __( 'Missing a required field', 'kadence-blocks' );
+				$this->process_bail( __( 'Submission Failed', 'kadence-blocks' ), $required_message );
+				break;
 			}
 
 			// If field is file, verify and process the file.
@@ -280,6 +289,7 @@ class KB_Ajax_Advanced_Form {
 						$max_count  = ! empty( $field['multipleLimit'] ) ? absint( $field['multipleLimit'] ) : 5;
 						if ( isset( $field['multiple'] ) && $field['multiple'] && $file_count > $max_count ) {
 							$this->process_bail( __( 'Submission Failed. Trying to include too many files.', 'kadence-blocks' ), __( 'Too many files', 'kadence-blocks' ) );
+							break;
 						}
 						foreach ( $post_file as $file ) {
 							$file_name_array[] = $file['name'];
@@ -287,6 +297,7 @@ class KB_Ajax_Advanced_Form {
 								$required_message = ! empty( $field['required_message'] ) ? $field['required_message'] : __( 'Missing a required field', 'kadence-blocks' );
 
 								$this->process_bail( __( 'Submission Failed', 'kadence-blocks' ), $required_message );
+								break;
 							} else if ( empty( $file['size'] ) ) {
 								continue;
 							}
@@ -297,10 +308,12 @@ class KB_Ajax_Advanced_Form {
 							// Is file too big.
 							if ( $file['size'] > $max_upload_size_bytes ) {
 								$this->process_bail( __( 'Submission Failed. File too large', 'kadence-blocks' ), __( 'File too large', 'kadence-blocks' ) );
+								break;
 							}
 
 							if ( ! is_uploaded_file( $file['tmp_name'] ) ) {
 								$this->process_bail( __( 'Submission Failed. File could not be uploaded', 'kadence-blocks' ), __( 'File was not uploaded', 'kadence-blocks' ) );
+								break;
 							}
 
 							$allowed_file_categories = empty( $field['allowedTypes'] ) ? array( 'images' ) : $field['allowedTypes'];
@@ -316,6 +329,7 @@ class KB_Ajax_Advanced_Form {
 								$space = get_upload_space_available();
 								if ( $space < $file_size || upload_is_user_over_quota( false ) ) {
 									$this->process_bail( __( 'Submission Failed. Not enough disk quota on this website.', 'kadence-blocks' ), __( 'Not enough disk quota on this website.', 'kadence-blocks' ) );
+									break;
 								}
 							}
 							if ( ! function_exists( 'wp_handle_upload' ) ) {
@@ -349,7 +363,7 @@ class KB_Ajax_Advanced_Form {
 			}
 
 			$processed_fields[] = array(
-				'label'    => ( ! empty( $field['label'] ) ? $field['label'] : '' ),
+				'label'    => ( ! empty( $field['label'] ) ? strip_tags( $field['label'] ) : '' ),
 				'type'     => $field['type'],
 				'required' => empty( $field['required'] ) ? false : $field['required'],
 				'value'    => 'file' === $field['type'] ? implode( ', ', $file_array ) : $value,
@@ -592,7 +606,7 @@ class KB_Ajax_Advanced_Form {
 		$blocks    = '';
 
 		$post_data = get_post( absint( $post_id ) );
-		if ( is_object( $post_data ) ) {
+		if ( is_object( $post_data ) && 'kadence_form' === $post_data->post_type && 'publish' === $post_data->post_status && empty( $post_data->post_password ) ) {
 			$blocks = parse_blocks( $post_data->post_content );
 		}
 

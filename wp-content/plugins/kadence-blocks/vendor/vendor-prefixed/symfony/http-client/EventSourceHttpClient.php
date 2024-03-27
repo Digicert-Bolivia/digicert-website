@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient;
@@ -36,7 +35,7 @@ final class EventSourceHttpClient implements HttpClientInterface, ResetInterface
 
     private $reconnectionTime;
 
-    public function __construct(HttpClientInterface $client = null, float $reconnectionTime = 10.0)
+    public function __construct(?HttpClientInterface $client = null, float $reconnectionTime = 10.0)
     {
         $this->client = $client ?? HttpClient::create();
         $this->reconnectionTime = $reconnectionTime;

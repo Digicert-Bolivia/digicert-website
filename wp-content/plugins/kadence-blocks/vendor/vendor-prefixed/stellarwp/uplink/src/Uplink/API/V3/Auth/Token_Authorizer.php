@@ -2,8 +2,7 @@
 /**
  * @license GPL-2.0-or-later
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */ declare( strict_types=1 );
 
 namespace KadenceWP\KadenceBlocks\StellarWP\Uplink\API\V3\Auth;
@@ -13,7 +12,7 @@ use KadenceWP\KadenceBlocks\StellarWP\Uplink\Traits\With_Debugging;
 use WP_Error;
 use WP_Http;
 
-use function StellarWP\Uplink\is_authorized;
+use function KadenceWP\KadenceBlocks\StellarWP\Uplink\is_authorized;
 
 /**
  * Manages authorization.
@@ -34,17 +33,19 @@ class Token_Authorizer implements Contracts\Token_Authorizer {
 	/**
 	 * Manually check if a license is authorized.
 	 *
-	 * @see is_authorized()
-	 *
 	 * @param  string  $license  The license key.
-	 * @param  string  $token  The stored token.
-	 * @param  string  $domain  The user's domain.
+	 * @param  string  $slug     The plugin/service slug.
+	 * @param  string  $token    The stored token.
+	 * @param  string  $domain   The user's domain.
 	 *
 	 * @return bool
+	 *
+	 * @see is_authorized()
 	 */
-	public function is_authorized( string $license, string $token, string $domain ): bool {
+	public function is_authorized( string $license, string $slug, string $token, string $domain ): bool {
 		$response = $this->client->get( 'tokens/auth', [
 			'license' => $license,
+			'slug'    => $slug,
 			'token'   => $token,
 			'domain'  => $domain,
 		] );

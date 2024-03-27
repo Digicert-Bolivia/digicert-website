@@ -80,6 +80,7 @@ class Kadence_Blocks_Settings {
 		add_action( 'admin_init', array( $this, 'load_settings' ) );
 		add_action( 'init', array( $this, 'load_api_settings' ) );
 		add_action( 'after_setup_theme', array( $this, 'load_color_palette' ), 999 );
+		add_filter( 'block_editor_settings_all', array( $this, 'load_color_palette_editor_settings' ), 999 );
 		add_action( 'init', array( $this, 'init_post_meta' ) );
 		add_action( 'admin_head-post.php', array( $this, 'admin_editor_width' ), 100 );
 		add_action( 'admin_head-post-new.php', array( $this, 'admin_editor_width' ), 100 );
@@ -317,6 +318,105 @@ class Kadence_Blocks_Settings {
 				)
 			);
 		}
+	}
+	/**
+	 * Load Gutenberg Palette in editor.
+	 *
+	 * @param array $settings The settings.
+	 */
+	public function load_color_palette_editor_settings( $settings ) {
+
+		$palette = json_decode( get_option( 'kadence_blocks_colors' ), true );
+		if ( isset( $palette['palette'] ) && is_array( $palette['palette'] ) ) {
+			$san_palette = array();
+			foreach ( $palette['palette'] as $item ) {
+				$san_palette[] = array(
+					'color' => $item['color'],
+					'name'  => $item['name'],
+					'slug'  => $item['slug'],
+				);
+			}
+			if ( isset( $san_palette[0] ) ) {
+				if ( ( isset( $palette['override'] ) && true !== $palette['override'] ) || ! isset( $palette['override'] ) ) {
+					$theme_palette = get_theme_support( 'editor-color-palette' );
+					if ( isset( $settings['colors'] ) && is_array( $settings['colors'] ) ) {
+						$newpalette = array_merge( $settings['colors'], $san_palette );
+					} else {
+						$default_palette = array(
+							array(
+								'name' => __( 'Pale pink', 'kadence-blocks' ),
+								'slug' => 'pale-pink',
+								'color' => '#f78da7',
+							),
+							array(
+								'name' => __( 'Vivid red', 'kadence-blocks' ),
+								'slug' => 'vivid-red',
+								'color' => '#cf2e2e',
+							),
+							array(
+								'name' => __( 'Luminous vivid orange', 'kadence-blocks' ),
+								'slug' => 'luminous-vivid-orange',
+								'color' => '#ff6900',
+							),
+							array(
+								'name' => __( 'Luminous vivid amber', 'kadence-blocks' ),
+								'slug' => 'luminous-vivid-amber',
+								'color' => '#fcb900',
+							),
+							array(
+								'name' => __( 'Light green cyan', 'kadence-blocks' ),
+								'slug' => 'light-green-cyan',
+								'color' => '#7bdcb5',
+							),
+							array(
+								'name' => __( 'Vivid green cyan', 'kadence-blocks' ),
+								'slug' => 'vivid-green-cyan',
+								'color' => '#00d084',
+							),
+							array(
+								'name' => __( 'Pale cyan blue', 'kadence-blocks' ),
+								'slug' => 'pale-cyan-blue',
+								'color' => '#8ed1fc',
+							),
+							array(
+								'name' => __( 'Vivid cyan blue', 'kadence-blocks' ),
+								'slug' => 'vivid-cyan-blue',
+								'color' => '#0693e3',
+							),
+							array(
+								'name' => __( 'Very light gray', 'kadence-blocks' ),
+								'slug' => 'very-light-gray',
+								'color' => '#eeeeee',
+							),
+							array(
+								'name' => __( 'Cyan bluish gray', 'kadence-blocks' ),
+								'slug' => 'cyan-bluish-gray',
+								'color' => '#abb8c3',
+							),
+							array(
+								'name' => __( 'Very dark gray', 'kadence-blocks' ),
+								'slug' => 'very-dark-gray',
+								'color' => '#313131',
+							),
+						);
+						$newpalette = array_merge( $default_palette, $san_palette );
+					}
+				} else {
+					$newpalette = $san_palette;
+				}
+				
+				$settings['colors'] = $newpalette;
+error_log( print_r( $settings['colors'], true ) );
+				if ( function_exists( 'get_block_editor_settings' ) ) {
+					$settings['__experimentalFeatures']['color']['palette']['user']
+						= $settings['__experimentalFeatures']['color']['palette']['theme']
+						= $newpalette;
+				}
+			}
+		}
+
+		return $settings;
+
 	}
 	/**
 	 * Load Gutenberg Palette
@@ -635,8 +735,8 @@ class Kadence_Blocks_Settings {
 		$license_key    = kadence_blocks_get_current_license_key();
 		$disconnect_url = '';
 		$is_authorized  = false;
-		if ( $token ) {
-			$is_authorized = is_authorized( $license_key, $token, get_license_domain() );
+		if ( ! empty( $license_key ) ) {
+			$is_authorized = is_authorized( $license_key, 'kadence-blocks', ( ! empty( $token ) ? $token : '' ), get_license_domain() );
 		}
 
 		if ( $is_authorized ) {
@@ -674,6 +774,10 @@ class Kadence_Blocks_Settings {
 			array(
 				'ajaxurl'             => admin_url( 'admin-ajax.php' ),
 				'wpnonce'             => wp_create_nonce( 'kadence-blocks-manage' ),
+				'site_name'           => sanitize_title( get_bloginfo( 'name' ) ),
+				'pSlug'               => apply_filters( 'kadence-blocks-auth-slug', 'kadence-blocks' ),
+				'isAIDisabled'        => kadence_blocks_is_ai_disabled(),
+				'pVersion'            => KADENCE_BLOCKS_VERSION,
 				'isAuthorized'        => $is_authorized,
 				'licenseKey'          => $license_key,
 				'authUrl'             => esc_url( $auth_url ),
@@ -1232,25 +1336,21 @@ class Kadence_Blocks_Settings {
 				'slug'  => 'kadence/rowlayout',
 				'name'  => __( 'Row Layout', 'kadence-blocks' ),
 				'desc'  => __( 'Create rows with nested blocks either in columns or as a container. Give style to your rows with background, overlay, padding, etc.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/rowlayout.jpg',
 			),
 			'kadence/form'        => array(
 				'slug'  => 'kadence/form',
 				'name'  => __( 'Form', 'kadence-blocks' ),
 				'desc'  => __( 'Create a contact form or marketing form and style it within the block editor.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/form-block.jpg',
 			),
 			'kadence/advancedgallery' => array(
 				'slug'  => 'kadence/advancedgallery',
 				'name'  => __( 'Advanced Gallery', 'kadence-blocks' ),
 				'desc'  => __( 'Photo galleries, carousels, and sliders! Enable custom links, captions, and more. Plus, you can select image sizes.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/gallery-block.jpg',
 			),
 			'kadence/advancedbtn' => array(
 				'slug'  => 'kadence/advancedbtn',
 				'name'  => __( 'Advanced Button', 'kadence-blocks' ),
 				'desc'  => __( 'Create an advanced button or a row of buttons. Style each one including hover controls plus you can use an icon and display them side by side', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/btn.jpg',
 			),
 			'kadence/lottie'        => array(
 				'slug'  => 'kadence/lottie',
@@ -1261,43 +1361,36 @@ class Kadence_Blocks_Settings {
 				'slug'  => 'kadence/icon',
 				'name'  => __( 'Icon', 'kadence-blocks' ),
 				'desc'  => __( 'Choose from over 1500+ SVG Icons to add into your page and style the size, colors, background, border, etc.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/icon.jpg',
 			),
 			'kadence/spacer'      => array(
 				'slug'  => 'kadence/spacer',
 				'name'  => __( 'Spacer/Divider', 'kadence-blocks' ),
 				'desc'  => __( 'Easily create a divider and determine the space around it or just create some space in your content.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/spacer.jpg',
 			),
 			'kadence/advancedheading'      => array(
 				'slug'  => 'kadence/advancedheading',
 				'name'  => __( 'Advanced Text', 'kadence-blocks' ),
 				'desc'  => __( 'Create a heading or paragraph and define sizes for desktop, tablet and mobile along with font family, colors, etc.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/heading.jpg',
 			),
 			'kadence/tabs'      => array(
 				'slug'  => 'kadence/tabs',
 				'name'  => __( 'Tabs', 'kadence-blocks' ),
 				'desc'  => __( 'Create custom vertical or horizontal tabs with advanced styling controls. Each tab content is an empty canvas able to contain any other blocks.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/tabs.jpg',
 			),
 			'kadence/infobox'      => array(
 				'slug'  => 'kadence/infobox',
 				'name'  => __( 'Info Box', 'kadence-blocks' ),
 				'desc'  => __( 'Create a box containing an icon or image and, optionally, a title, description, and learn more text. Style static and hover separately.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/infobox.jpg',
 			),
 			'kadence/accordion'      => array(
 				'slug'  => 'kadence/accordion',
 				'name'  => __( 'Accordion', 'kadence-blocks' ),
 				'desc'  => __( 'Create beautiful accordions! Each pane can contain any other block, customize title styles, content background, and borders.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/accordion.jpg',
 			),
 			'kadence/iconlist'      => array(
 				'slug'  => 'kadence/iconlist',
 				'name'  => __( 'Icon List', 'kadence-blocks' ),
 				'desc'  => __( 'Add beautiful icons to your lists and make them more engaging. Over 1500 icons to choose from and unlimited styles.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/iconlist.jpg',
 			),
 			'kadence/tableofcontents'      => array(
 				'slug'  => 'kadence/tableofcontents',
@@ -1318,7 +1411,6 @@ class Kadence_Blocks_Settings {
 				'slug'  => 'kadence/testimonials',
 				'name'  => __( 'Testimonials', 'kadence-blocks' ),
 				'desc'  => __( 'Create confidence in your brand or product by showing off beautiful unique testimonials, add as a carousel or a grid.', 'kadence-blocks' ),
-				'image' => KADENCE_BLOCKS_URL . 'includes/settings/img/testimonials.jpg',
 			),
 		);
 		return apply_filters( 'kadence_blocks_enable_disable_array', $blocks );

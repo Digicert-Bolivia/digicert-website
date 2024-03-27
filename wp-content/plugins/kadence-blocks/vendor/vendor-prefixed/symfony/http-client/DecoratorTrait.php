@@ -8,8 +8,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Modified by kadencewp on 11-January-2024 using Strauss.
- * @see https://github.com/BrianHenryIE/strauss
+ * Modified by kadencewp on 19-March-2024 using {@see https://github.com/BrianHenryIE/strauss}.
  */
 
 namespace KadenceWP\KadenceBlocks\Symfony\Component\HttpClient;
@@ -28,7 +27,7 @@ trait DecoratorTrait
 {
     private $client;
 
-    public function __construct(HttpClientInterface $client = null)
+    public function __construct(?HttpClientInterface $client = null)
     {
         $this->client = $client ?? HttpClient::create();
     }
@@ -44,7 +43,7 @@ trait DecoratorTrait
     /**
      * {@inheritdoc}
      */
-    public function stream($responses, float $timeout = null): ResponseStreamInterface
+    public function stream($responses, ?float $timeout = null): ResponseStreamInterface
     {
         return $this->client->stream($responses, $timeout);
     }
