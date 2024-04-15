@@ -1,10 +1,10 @@
 === Carousel Slider Block for Gutenberg ===
 Contributors: virgildia
 Donate link: http://virgiliudiaconu.com/
-Tags: gutenberg, carousel, slide, slideshow, slider, block
-Requires at least: 5.8
-Tested up to: 6.4
-Requires PHP: 5.6+
+Tags: carousel, slide, gutenberg, slideshow, slider
+Requires at least: 6.1
+Tested up to: 6.5.2
+Requires PHP: 7.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,4 +114,8 @@ Small CSS improvements in the editor. Updated slick CSS stylesheet handle. Teste
 Fixed error message on Widget Editor screen. Tested on WordPress 6.3.1.
 
 = 1.0.10 =
-Fixed lodash error with latest WordPress 6.4 update
+Fixed lodash error with latest WordPress 6.4 update.
+
+= 1.0.11 =
+Fixed layout issue in rows.
+Code refactoring.

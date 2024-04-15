@@ -1,0 +1,1 @@
+jQuery(".wp-block-cb-carousel").slick();

@@ -406,7 +406,6 @@ class Kadence_Blocks_Settings {
 				}
 				
 				$settings['colors'] = $newpalette;
-error_log( print_r( $settings['colors'], true ) );
 				if ( function_exists( 'get_block_editor_settings' ) ) {
 					$settings['__experimentalFeatures']['color']['palette']['user']
 						= $settings['__experimentalFeatures']['color']['palette']['theme']
@@ -944,7 +943,7 @@ error_log( print_r( $settings['colors'], true ) );
 			'kadence_blocks_mailerlite_api',
 			array(
 				'type'              => 'string',
-				'description'       => __( 'MailerLite API Key', 'kadence-blocks-pro' ),
+				'description'       => __( 'MailerLite API Key', 'kadence-blocks' ),
 				'sanitize_callback' => 'sanitize_text_field',
 				'show_in_rest'      => true,
 				'default'           => '',
@@ -955,7 +954,7 @@ error_log( print_r( $settings['colors'], true ) );
 			'kadence_blocks_google_maps_api',
 			array(
 				'type'              => 'string',
-				'description'       => __( 'Google Maps API Key', 'kadence-blocks-pro' ),
+				'description'       => __( 'Google Maps API Key', 'kadence-blocks' ),
 				'sanitize_callback' => 'sanitize_text_field',
 				'show_in_rest'      => true,
 				'default'           => '',
@@ -988,7 +987,7 @@ error_log( print_r( $settings['colors'], true ) );
 			'kadence_blocks_convertkit_api',
 			array(
 				'type'              => 'string',
-				'description'       => __( 'ConvertKit API Key', 'kadence-blocks-pro' ),
+				'description'       => __( 'ConvertKit API Key', 'kadence-blocks' ),
 				'sanitize_callback' => 'sanitize_text_field',
 				'show_in_rest'      => true,
 				'default'           => '',
@@ -999,7 +998,7 @@ error_log( print_r( $settings['colors'], true ) );
 			'kadence_blocks_activecampaign_api_key',
 			array(
 				'type'              => 'string',
-				'description'       => __( 'ConvertKit API Key', 'kadence-blocks-pro' ),
+				'description'       => __( 'ConvertKit API Key', 'kadence-blocks' ),
 				'sanitize_callback' => 'sanitize_text_field',
 				'show_in_rest'      => true,
 				'default'           => '',
@@ -1010,7 +1009,7 @@ error_log( print_r( $settings['colors'], true ) );
 			'kadence_blocks_activecampaign_api_base',
 			array(
 				'type'              => 'string',
-				'description'       => __( 'ConvertKit API Key', 'kadence-blocks-pro' ),
+				'description'       => __( 'ConvertKit API Key', 'kadence-blocks' ),
 				'sanitize_callback' => 'sanitize_text_field',
 				'show_in_rest'      => true,
 				'default'           => '',
