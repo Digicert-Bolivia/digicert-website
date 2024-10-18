@@ -1,0 +1,13 @@
+# Creado por https://www.toptal.com/developers/gitignore/api/wordpress
+
+# Carpeta de Contenidos
+/wp-content
+
+# Configuración
+wp-config.php
+
+# Archivos de registro
+*.log
+
+# htaccess
+# /.htaccess
