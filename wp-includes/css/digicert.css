@@ -1,0 +1,8 @@
+/* ========================= CONTACTO ========================= */
+.wp-block-kadence-advanced-form .kb-adv-form-loading {
+    background: none !important; /* Elimina el fondo */
+}
+
+.wp-block-kadence-advanced-form .kb-form-is-dark .kb-adv-form-loading {
+    background: none !important; /* Elimina el fondo en tema oscuro */
+}

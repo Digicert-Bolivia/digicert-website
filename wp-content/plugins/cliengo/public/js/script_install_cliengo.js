@@ -1,1 +1,0 @@
-(function(){var ldk=document.createElement("script"); ldk.type="text/javascript";ldk.async=true; ldk.src="https://s.cliengo.com/weboptimizer/65ba9cf2bf537500326c8dff/65ba9cf5bf537500326c8e02.js?platform=wordpress"; var s=document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(ldk, s);})();
