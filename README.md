@@ -13,6 +13,12 @@ Los requisitos recomendados para el compilado de Wordpress:
 - WP-CLI Instalado
 
 ## PASOS DE INSTALACION EN LOCAL
+> [!IMPORTANT]
+> Debes tener **WP-CLI** instalado. Si aún no lo has hecho, puedes elegir una de las siguientes opciones de instalación:
+> 
+> - Opción 1 (Linux): [Guía de Instalación de WP-CLI de Hostinger](https://www.hostinger.es/tutoriales/wp-cli) para obtener instrucciones detalladas.
+> - Opción 2 (Linux): [Guía de Uso de WP-CLI en AyudaWP](https://ayudawp.com/wp-cli-la-interfaz-de-comandos-de-wordpress-guia-de-uso/) para aprender cómo instalar y usar WP-CLI.
+> - Opción 3 (Windows): [Guia de instalacion WP-CLI en Windows](https://desarrollowp.com/blog/tutoriales/wp-cli-parte-1-instalacion-primeros-pasos/) .
 
 ### PASO 1: _Clonar repositorio en tu ordenador_
 
@@ -24,16 +30,10 @@ git clone https://github.com/Digicert-Bolivia/digicert-website.git
 - Crea la base de datos con el nombre de `“digicert_website_db”`
 - Importa la base de datos, el backup sql está en la raíz de proyecto con el nombre de `digicert_website_db.sql`
 
+```bash
+wp db import digicert_website_db.sql
+```
 ### PASO 3: _Crear el `wp-config.php` para establecer conexión a bd_
-
-
-> [!IMPORTANT]
-> Debes tener **WP-CLI** instalado. Si aún no lo has hecho, puedes elegir una de las siguientes opciones de instalación:
-> 
-> - Opción 1 (Linux): [Guía de Instalación de WP-CLI de Hostinger](https://www.hostinger.es/tutoriales/wp-cli) para obtener instrucciones detalladas.
-> - Opción 2 (Linux): [Guía de Uso de WP-CLI en AyudaWP](https://ayudawp.com/wp-cli-la-interfaz-de-comandos-de-wordpress-guia-de-uso/) para aprender cómo instalar y usar WP-CLI.
-> - Opción 3 (Windows): [Guia de instalacion WP-CLI en Windows](https://desarrollowp.com/blog/tutoriales/wp-cli-parte-1-instalacion-primeros-pasos/) .
-
 
 Establece y ejecuta las credenciales de conexion a la bd:
 
@@ -57,7 +57,7 @@ Luego Verifica que el `wp-config.php` se haya generado correctamente.
 Estar en modo administrador e ir a la ruta del proyecto por ejemplo en XAMPP:
 
 ```bash
-cd C:\xampp\htdocs\digicert-website
+cd /var/www/html/digicert-website
 ```
 
 Siempre se recomienda hacer un “simulacro” antes de realizar la búsqueda y el reemplazo reales. Esto mostrará cuántas instancias se cambiarán
@@ -113,6 +113,44 @@ wp plugin install updraftplus
 
 7. Finalmente dirigete a visualizar la restauración del [Sitio Web](http://localhost/digicert-website/)
 ##
+
+### CONTROL DE VERSION DEL CODIGO
+Para subir los cambios al repositorio github debes realizar los siguientes pasos:
+
+1. Ir al menu de Updraftplus y presionar el boton de _"Hacer Copia de seguridad"_.
+   | Imagen de Ejemplo |
+   | :-------------------------: |
+   | ![paso1](https://github.com/user-attachments/assets/730bbed6-91b5-4af2-8937-bca820f987e3) |
+
+    
+2. Marcar las 3 siguientes opciones y clic en _"Hacer ahora copia una seguridad"_
+   | Imagen de Ejemplo |
+   | :-------------------------: |
+   | ![paso2](https://github.com/user-attachments/assets/4e79c884-28ee-42b8-a346-860f67b1d999) |
+
+3. **Exportar base de datos:** Ir a raiz del proyecto y abrir la consola para ejecutar lo siguiente:
+     ```bash
+     sudo wp db export
+     ```
+    para Linux:
+    ```bash
+     sudo /usr/local/bin/wp db export
+     ```
+4. Renombrar la base de datos exportada a `“digicert_website_db.sql”`
+    ```bash
+     cd /var/www/html/digicert-website
+     ```
+    ```bash
+     mv digicert_website_db-2024-12-06-41e91c6.sql digicert_website_db.sql
+     ```
+4. Subir contenido del proyecto a repositorio github
+
 ### NOTAS ADICIONALES
 - **Enlace del Backup:** Se Almacena en esta [Carpeta de Drive](https://drive.google.com/drive/folders/1tgUpDrhG4LTdisMbCz3Zi-rdXFG6ZcMO)
 - **Extensión ZIP:** Habilitar o descomentar la `extension=zip` en el archivo de configuración de `php.ini`
+- **Extensión imagick, gd, intl:** Descomentar la `extension=imagick`, `extension=gd`, `extension=intl`, en el archivo de configuración de `php.ini`. En caso de no estar instalado puedes ejecutar la instalación con el siguiente comando:
+   
+   ```bash
+   sudo dnf install php-gd php-imagick php-intl
+   ```
+
